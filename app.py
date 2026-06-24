@@ -122,6 +122,8 @@ with tab_tasks:
                     "Duration (min)", min_value=1, max_value=240, value=20
                 )
                 priority = st.selectbox("Priority", ["high", "medium", "low"])
+                pref_hour = st.slider("Preferred start time (hour)", 5, 22, 8)
+                preferred_time = f"{pref_hour:02d}:00"
                 is_recurring = st.checkbox("Recurring?", value=False)
                 recurrence = st.selectbox(
                     "Recurrence", ["daily", "weekly", "as_needed"], disabled=not is_recurring
@@ -138,6 +140,7 @@ with tab_tasks:
                         task_type=task_type,
                         is_recurring=is_recurring,
                         recurrence_interval=recurrence if is_recurring else "as_needed",
+                        preferred_time=preferred_time,
                     )
                 )
                 st.success(f"Added '{task_title}' to {target_pet_name}!")
@@ -162,7 +165,9 @@ with tab_tasks:
                         with col_done:
                             if not task.completed:
                                 if st.button("Done", key=f"done_{pet.name}_{task.title}"):
-                                    task.mark_complete()
+                                    next_task = task.mark_complete()
+                                    if next_task is not None:
+                                        pet.add_task(next_task)
                                     st.rerun()
                         with col_remove:
                             if st.button("✕", key=f"del_{pet.name}_{task.title}"):

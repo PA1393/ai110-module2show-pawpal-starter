@@ -20,7 +20,7 @@ The system is built around five classes:
 
 **b. Design changes**
 
-No changes yet — this section will be updated after Phase 2 implementation if the skeleton needs to evolve.
+During Phase 4 (algorithmic layer), two fields were added to `Task`: `preferred_time` (HH:MM string for when in the day a task is preferred) and `due_date` (YYYY-MM-DD, empty = any day). These weren't in the original UML because the initial design treated scheduling as purely priority-driven. Once recurring tasks required a concrete next-due date, and the UI needed time-of-day hints for a realistic schedule, both fields became necessary. The `mark_complete()` signature also changed from `None` to `Optional[Task]` to support returning a ready-made next-occurrence object for recurring tasks.
 
 ---
 
@@ -28,13 +28,11 @@ No changes yet — this section will be updated after Phase 2 implementation if 
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers three constraints: (1) the owner's daily time budget (`available_minutes_per_day`), which hard-caps how much can fit in a day; (2) each task's `preferred_time`, which is the primary sort key — tasks are grouped by when they should happen rather than just by importance; (3) task `priority` (high/medium/low), used as a tiebreaker when two tasks share the same preferred slot. `preferred_time` was made the primary constraint because pet care routines are inherently time-driven: a morning walk belongs in the morning whether it is high or low priority. Priority then breaks ties within the same time window to ensure the more important task runs first when they compete for the same slot.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The scheduler uses a greedy algorithm: tasks are sorted by preferred_time and placed as early as possible after their preferred slot, with the time pointer advancing after each placement. This means it cannot backtrack — if a 60-minute vet appointment claims 09:00–10:00, a 5-minute feeding preferred at 09:30 gets pushed to 10:00 instead of being inserted before the appointment. This is a greedy-vs-optimal tradeoff. It is reasonable for a single-day pet care schedule because predictability and simplicity matter more than mathematical optimality: an owner can read and trust a sequential plan, and pet care tasks are not so tightly constrained that the global optimum would look meaningfully different from the greedy result.
 
 ---
 

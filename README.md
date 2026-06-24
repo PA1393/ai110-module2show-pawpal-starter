@@ -109,10 +109,13 @@ tests/test_pawpal.py::test_detect_conflicts_finds_none_for_sequential_schedule P
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | `Scheduler.sort_tasks()` | Priority descending (high→low); ties broken by duration ascending |
-| Filtering | `Scheduler.generate_schedule()` | Skips tasks that exceed remaining daily budget; continues checking smaller ones |
-| Conflict handling | `Scheduler.detect_conflicts()` | Compares every pair of ScheduledTask windows for overlap |
-| Recurring tasks | `Task.is_recurring`, `Task.recurrence_interval` | Fields stored on Task; "daily" / "weekly" / "as_needed" |
+| Sort by priority | `Scheduler.sort_tasks()` | Priority descending (high→low); ties broken by duration ascending (shorter first) |
+| Sort by time | `Scheduler.sort_by_time()` | Sorts by `Task.preferred_time` (HH:MM) ascending; within the same slot, priority descending |
+| Filter by status / type | `Scheduler.filter_tasks()` | Keyword args: `completed=True/False`, `task_type="walk"` etc. |
+| Schedule generation | `Scheduler.generate_schedule()` | Greedy; respects preferred_time and owner's daily budget; skips tasks that won't fit |
+| Conflict detection | `Scheduler.detect_conflicts()` | O(n²) pairwise window-overlap check on a list of ScheduledTasks |
+| Conflict warnings | `Scheduler.conflict_warnings()` | Wraps `detect_conflicts()` and returns human-readable warning strings |
+| Recurring tasks | `Task.mark_complete()` | Returns a new `Task` for the next occurrence (daily +1 day, weekly +7 days); `None` for non-recurring |
 
 ## 📸 Demo Walkthrough
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import List, Tuple
+from datetime import datetime, timedelta, date as date_type
+from typing import List, Optional, Tuple
 
 
 PRIORITY_ORDER = {"high": 3, "medium": 2, "low": 1}
@@ -16,10 +16,31 @@ class Task:
     is_recurring: bool = False
     recurrence_interval: str = "daily"  # "daily", "weekly", "as_needed"
     completed: bool = False
+    preferred_time: str = "08:00"       # HH:MM; earliest preferred start in the day
+    due_date: str = ""                  # YYYY-MM-DD; empty = any day
 
-    def mark_complete(self) -> None:
-        """Mark this task as done."""
+    def mark_complete(self) -> Optional["Task"]:
+        """Mark done; return a next-occurrence Task if recurring, else None."""
         self.completed = True
+        if self.is_recurring and self.recurrence_interval != "as_needed":
+            return self._next_occurrence()
+        return None
+
+    def _next_occurrence(self) -> "Task":
+        """Build a fresh copy of this task scheduled for the next recurrence date."""
+        base = date_type.fromisoformat(self.due_date) if self.due_date else date_type.today()
+        delta = timedelta(days=1) if self.recurrence_interval == "daily" else timedelta(weeks=1)
+        return Task(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            task_type=self.task_type,
+            is_recurring=self.is_recurring,
+            recurrence_interval=self.recurrence_interval,
+            completed=False,
+            preferred_time=self.preferred_time,
+            due_date=str(base + delta),
+        )
 
     def to_dict(self) -> dict:
         """Return a plain-dict representation of this task."""
@@ -31,6 +52,8 @@ class Task:
             "is_recurring": self.is_recurring,
             "recurrence_interval": self.recurrence_interval,
             "completed": self.completed,
+            "preferred_time": self.preferred_time,
+            "due_date": self.due_date,
         }
 
 
@@ -102,37 +125,68 @@ class Scheduler:
         self.start_time = start_time
 
     def sort_tasks(self, tasks: List[Task]) -> List[Task]:
-        """Sort by priority descending; break ties by duration ascending (shorter tasks first)."""
+        """Sort by priority descending; break ties by duration ascending (shorter first)."""
         return sorted(
             tasks,
             key=lambda t: (-PRIORITY_ORDER.get(t.priority, 0), t.duration_minutes),
         )
 
+    def sort_by_time(self, tasks: List[Task]) -> List[Task]:
+        """Sort tasks by preferred_time ascending; within the same slot, by priority descending."""
+        return sorted(
+            tasks,
+            key=lambda t: (t.preferred_time, -PRIORITY_ORDER.get(t.priority, 0)),
+        )
+
+    def filter_tasks(
+        self,
+        pet: Pet,
+        *,
+        completed: Optional[bool] = None,
+        task_type: Optional[str] = None,
+    ) -> List[Task]:
+        """Return a pet's tasks filtered by completion status and/or task type."""
+        tasks = pet.get_tasks()
+        if completed is not None:
+            tasks = [t for t in tasks if t.completed == completed]
+        if task_type is not None:
+            tasks = [t for t in tasks if t.task_type == task_type]
+        return tasks
+
     def generate_schedule(self, pet: Pet) -> List[ScheduledTask]:
-        """Greedily assign time slots to sorted tasks until the owner's daily budget is exhausted."""
-        tasks = self.sort_tasks(pet.get_tasks())
+        """Assign time slots honoring each task's preferred_time and the owner's budget."""
+        # Primary sort: preferred_time; secondary: priority (so high-pri tasks win ties)
+        tasks = self.sort_by_time(pet.get_tasks())
         schedule: List[ScheduledTask] = []
         current_dt = datetime.strptime(f"{self.date} {self.start_time}", "%Y-%m-%d %H:%M")
         remaining = self.owner.available_minutes_per_day
 
         for task in tasks:
             if task.duration_minutes > remaining:
-                continue  # not enough time — skip, keep trying smaller tasks
-            end_dt = current_dt + timedelta(minutes=task.duration_minutes)
+                continue  # skip — won't fit, keep checking smaller tasks
+
+            # Don't start before preferred_time
+            preferred_dt = datetime.strptime(
+                f"{self.date} {task.preferred_time}", "%Y-%m-%d %H:%M"
+            )
+            task_start = max(current_dt, preferred_dt)
+            task_end = task_start + timedelta(minutes=task.duration_minutes)
+
             reason = (
-                f"Scheduled at {self.start_time} slot; "
+                f"Preferred at {task.preferred_time}; "
+                f"starts at {task_start.strftime('%H:%M')}; "
                 f"priority={task.priority}; "
-                f"{remaining} min remaining before this task."
+                f"{remaining} min remaining."
             )
             schedule.append(
                 ScheduledTask(
                     task=task,
-                    start_time=current_dt.strftime("%H:%M"),
-                    end_time=end_dt.strftime("%H:%M"),
+                    start_time=task_start.strftime("%H:%M"),
+                    end_time=task_end.strftime("%H:%M"),
                     reason=reason,
                 )
             )
-            current_dt = end_dt
+            current_dt = task_end
             remaining -= task.duration_minutes
 
         return schedule
@@ -152,6 +206,14 @@ class Scheduler:
                     conflicts.append((a, b))
         return conflicts
 
+    def conflict_warnings(self, schedule: List[ScheduledTask]) -> List[str]:
+        """Return human-readable warning strings for every detected conflict."""
+        return [
+            f"CONFLICT: '{a.task.title}' ({a.start_time}–{a.end_time}) "
+            f"overlaps '{b.task.title}' ({b.start_time}–{b.end_time})"
+            for a, b in self.detect_conflicts(schedule)
+        ]
+
     def explain_plan(self, schedule: List[ScheduledTask]) -> str:
         """Return a plain-English summary of a generated schedule."""
         if not schedule:
@@ -164,7 +226,5 @@ class Scheduler:
                 f"[{st.task.priority} priority]"
             )
         total = sum(s.task.duration_minutes for s in schedule)
-        lines.append(
-            f"\n  Total: {total} / {self.owner.available_minutes_per_day} min used."
-        )
+        lines.append(f"\n  Total: {total} / {self.owner.available_minutes_per_day} min used.")
         return "\n".join(lines)
