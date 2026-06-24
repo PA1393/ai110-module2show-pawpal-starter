@@ -44,14 +44,34 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+Run `python main.py` to see the CLI demo:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+====================================================
+  PawPal+ Daily Schedule
+  Owner : Jordan  (jordan@example.com)
+  Budget: 90 min available today
+====================================================
+
+--- Mochi (Shiba Inu, age 3) ---
+  08:00 – 08:05  Heartworm pill (5 min)  [high priority]
+  08:05 – 08:15  Breakfast feeding (10 min)  [high priority]
+  08:15 – 08:45  Morning walk (30 min)  [high priority]
+  08:45 – 09:05  Enrichment play (20 min)  [medium priority]
+  09:05 – 09:20  Brushing (15 min)  [low priority]
+
+  Total: 80 / 90 min used.
+  No scheduling conflicts.
+
+--- Luna (Tabby, age 5) ---
+  08:00 – 08:05  Breakfast feeding (5 min)  [high priority]
+  08:05 – 09:05  Vet appointment (60 min)  [high priority]
+  09:05 – 09:15  Laser pointer play (10 min)  [medium priority]
+
+  Total: 75 / 90 min used.
+  No scheduling conflicts.
+
+====================================================
 ```
 
 ## 🧪 Testing PawPal+
@@ -67,7 +87,20 @@ pytest --cov
 Sample test output:
 
 ```
-# Paste your pytest output here
+platform linux -- Python 3.12.3, pytest-9.1.1
+collected 9 items
+
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 11%]
+tests/test_pawpal.py::test_mark_complete_is_idempotent PASSED            [ 22%]
+tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED      [ 33%]
+tests/test_pawpal.py::test_remove_task_decreases_pet_task_count PASSED   [ 44%]
+tests/test_pawpal.py::test_add_pet_increases_owner_pet_count PASSED      [ 55%]
+tests/test_pawpal.py::test_remove_pet_decreases_owner_pet_count PASSED   [ 66%]
+tests/test_pawpal.py::test_sort_tasks_high_before_low PASSED             [ 77%]
+tests/test_pawpal.py::test_generate_schedule_respects_budget PASSED      [ 88%]
+tests/test_pawpal.py::test_detect_conflicts_finds_none_for_sequential_schedule PASSED [100%]
+
+9 passed in 0.02s
 ```
 
 ## 📐 Smarter Scheduling
@@ -76,10 +109,10 @@ Sample test output:
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_tasks()` | Priority descending (high→low); ties broken by duration ascending |
+| Filtering | `Scheduler.generate_schedule()` | Skips tasks that exceed remaining daily budget; continues checking smaller ones |
+| Conflict handling | `Scheduler.detect_conflicts()` | Compares every pair of ScheduledTask windows for overlap |
+| Recurring tasks | `Task.is_recurring`, `Task.recurrence_interval` | Fields stored on Task; "daily" / "weekly" / "as_needed" |
 
 ## 📸 Demo Walkthrough
 
