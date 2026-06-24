@@ -1,15 +1,55 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
-
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +str name
+        +str email
+        +int available_minutes_per_day
+        +List~Pet~ pets
+        +add_pet(pet: Pet) None
+        +remove_pet(name: str) None
+        +get_pets() List~Pet~
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +str name
+        +str species
+        +int age
+        +str breed
+        +List~Task~ tasks
+        +add_task(task: Task) None
+        +remove_task(title: str) None
+        +get_tasks() List~Task~
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +str title
+        +int duration_minutes
+        +str priority
+        +str task_type
+        +bool is_recurring
+        +str recurrence_interval
+        +to_dict() dict
+    }
+
+    class Scheduler {
+        +Owner owner
+        +str date
+        +str start_time
+        +generate_schedule(pet: Pet) List~ScheduledTask~
+        +sort_tasks(tasks: List~Task~) List~Task~
+        +detect_conflicts(schedule: List~ScheduledTask~) List~tuple~
+        +explain_plan(schedule: List~ScheduledTask~) str
+    }
+
+    class ScheduledTask {
+        +Task task
+        +str start_time
+        +str end_time
+        +str reason
+        +to_dict() dict
+    }
+
+    Owner "1" --> "1..*" Pet : owns
+    Pet "1" --> "0..*" Task : has
+    Scheduler --> Owner : schedules for
+    Scheduler "1" --> "0..*" ScheduledTask : produces
+    ScheduledTask --> Task : wraps

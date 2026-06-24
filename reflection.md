@@ -2,15 +2,25 @@
 
 ## 1. System Design
 
+**Three core actions a user should be able to perform:**
+
+1. **Add a pet** — register a pet (name, species, age, breed) under their owner profile so the system knows who it's planning for.
+2. **Add care tasks to a pet** — attach tasks (walks, feedings, medications, appointments) with a duration, priority, and recurrence so the scheduler has something to work with.
+3. **Generate and view a daily schedule** — produce a prioritized, conflict-free time-blocked plan for the day and read a plain-English explanation of why each task was included.
+
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+The system is built around five classes:
+
+- **Task** — a dataclass holding everything about a single care activity: title, duration in minutes, priority level (high/medium/low), task type (walk, feeding, medication, etc.), and whether it recurs (daily, weekly, as-needed). It is a pure data object with no knowledge of pets or schedules.
+- **Pet** — a dataclass representing one animal. It owns a list of Tasks and exposes methods to add, remove, and retrieve them. It is the unit the Scheduler operates on.
+- **Owner** — a dataclass representing the human. It holds a list of Pets and a daily availability budget (minutes). The Scheduler reads this budget to know how much can be packed into a day.
+- **ScheduledTask** — a dataclass that wraps a Task once it has been assigned a concrete start/end time and a human-readable reason string. The Scheduler produces these; the UI and demo script consume them.
+- **Scheduler** — the only non-dataclass. It receives an Owner and a date, then provides four operations: sort tasks by priority, generate a time-blocked schedule that respects the owner's availability, detect overlapping time slots, and produce a plain-English explanation of the final plan.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+No changes yet — this section will be updated after Phase 2 implementation if the skeleton needs to evolve.
 
 ---
 
