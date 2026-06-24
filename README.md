@@ -44,64 +44,109 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Run `python main.py` to see the CLI demo:
+Run `python main.py` to see the full algorithmic feature demo:
 
 ```
-====================================================
-  PawPal+ Daily Schedule
-  Owner : Jordan  (jordan@example.com)
-  Budget: 90 min available today
-====================================================
-
---- Mochi (Shiba Inu, age 3) ---
+======================================================
+  1. Generated schedule (sort_by_time + preferred_time)
+======================================================
+  07:00 – 07:30  Morning walk (30 min)  [high priority]
   08:00 – 08:05  Heartworm pill (5 min)  [high priority]
   08:05 – 08:15  Breakfast feeding (10 min)  [high priority]
-  08:15 – 08:45  Morning walk (30 min)  [high priority]
-  08:45 – 09:05  Enrichment play (20 min)  [medium priority]
-  09:05 – 09:20  Brushing (15 min)  [low priority]
+  15:00 – 15:20  Enrichment play (20 min)  [medium priority]
+  17:00 – 17:15  Brushing (15 min)  [low priority]
 
-  Total: 80 / 90 min used.
-  No scheduling conflicts.
+  Total: 80 / 120 min used.
 
---- Luna (Tabby, age 5) ---
-  08:00 – 08:05  Breakfast feeding (5 min)  [high priority]
-  08:05 – 09:05  Vet appointment (60 min)  [high priority]
-  09:05 – 09:15  Laser pointer play (10 min)  [medium priority]
+======================================================
+  2. sort_by_time() — all tasks ordered by preferred slot
+======================================================
+  07:00  Morning walk           [high]
+  08:00  Heartworm pill         [high]
+  08:00  Breakfast feeding      [high]
+  15:00  Enrichment play        [medium]
+  17:00  Brushing               [low]
 
-  Total: 75 / 90 min used.
-  No scheduling conflicts.
+======================================================
+  3. filter_tasks() — incomplete only / feeding only
+======================================================
+  ...
 
-====================================================
+======================================================
+  4. Recurring tasks — mark_complete() returns next occurrence
+======================================================
+  Before: title='Morning walk'  due=2026-06-23  completed=False
+  After:  completed=True
+  Next:   title='Morning walk'  due=2026-06-24  completed=False
+
+======================================================
+  5. detect_conflicts() / conflict_warnings() — overlapping tasks
+======================================================
+  ⚠  CONFLICT: 'Vet appointment' (09:00–10:00) overlaps 'Grooming session' (09:30–10:00)
 ```
 
 ## 🧪 Testing PawPal+
 
 ```bash
-# Run the full test suite:
-pytest
+# Activate the virtual environment first:
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Run with coverage:
-pytest --cov
+# Run the full test suite:
+python -m pytest tests/ -v
 ```
 
-Sample test output:
+### What the tests cover
+
+| Group | Tests | What's verified |
+|-------|-------|-----------------|
+| Task lifecycle | 6 | `mark_complete()` sets status; recurring tasks return a next-occurrence `Task`; non-recurring and `as_needed` return `None`; idempotent completion |
+| Pet CRUD | 2 | Adding a task increases count; removing a task by title decreases count |
+| Owner CRUD | 2 | Adding / removing pets by name |
+| Sorting | 2 | Priority sort (high→low) and time sort (HH:MM ascending, priority tiebreaker) |
+| Filtering | 2 | Filter by `completed` status; filter by `task_type`; empty-result case |
+| Schedule generation | 3 | Respects daily budget; honors `preferred_time`; handles pet with no tasks; exact-budget fit |
+| Conflict detection | 4 | No conflicts on sequential schedule; overlap detected; exact same start time flagged; `conflict_warnings` returns strings |
+| Edge cases | 3 | Empty schedule message; all attributes preserved on next occurrence; no-match filter |
+
+### Sample test run
 
 ```
 platform linux -- Python 3.12.3, pytest-9.1.1
-collected 9 items
+collected 26 items
 
-tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 11%]
-tests/test_pawpal.py::test_mark_complete_is_idempotent PASSED            [ 22%]
-tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED      [ 33%]
-tests/test_pawpal.py::test_remove_task_decreases_pet_task_count PASSED   [ 44%]
-tests/test_pawpal.py::test_add_pet_increases_owner_pet_count PASSED      [ 55%]
-tests/test_pawpal.py::test_remove_pet_decreases_owner_pet_count PASSED   [ 66%]
-tests/test_pawpal.py::test_sort_tasks_high_before_low PASSED             [ 77%]
-tests/test_pawpal.py::test_generate_schedule_respects_budget PASSED      [ 88%]
-tests/test_pawpal.py::test_detect_conflicts_finds_none_for_sequential_schedule PASSED [100%]
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [  3%]
+tests/test_pawpal.py::test_mark_complete_is_idempotent PASSED            [  7%]
+tests/test_pawpal.py::test_mark_complete_returns_none_for_non_recurring PASSED [ 11%]
+tests/test_pawpal.py::test_mark_complete_returns_next_task_for_daily_recurring PASSED [ 15%]
+tests/test_pawpal.py::test_mark_complete_returns_next_task_for_weekly_recurring PASSED [ 19%]
+tests/test_pawpal.py::test_mark_complete_as_needed_returns_none PASSED   [ 23%]
+tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED      [ 26%]
+tests/test_pawpal.py::test_remove_task_decreases_pet_task_count PASSED   [ 30%]
+tests/test_pawpal.py::test_add_pet_increases_owner_pet_count PASSED      [ 34%]
+tests/test_pawpal.py::test_remove_pet_decreases_owner_pet_count PASSED   [ 38%]
+tests/test_pawpal.py::test_sort_tasks_high_before_low PASSED             [ 42%]
+tests/test_pawpal.py::test_sort_by_time_orders_by_preferred_time PASSED  [ 46%]
+tests/test_pawpal.py::test_filter_tasks_by_completion_status PASSED      [ 50%]
+tests/test_pawpal.py::test_filter_tasks_by_type PASSED                   [ 53%]
+tests/test_pawpal.py::test_generate_schedule_respects_budget PASSED      [ 57%]
+tests/test_pawpal.py::test_generate_schedule_honors_preferred_time PASSED [ 61%]
+tests/test_pawpal.py::test_detect_conflicts_finds_none_for_sequential_schedule PASSED [ 65%]
+tests/test_pawpal.py::test_detect_conflicts_finds_overlap PASSED         [ 69%]
+tests/test_pawpal.py::test_conflict_warnings_returns_strings PASSED      [ 73%]
+tests/test_pawpal.py::test_generate_schedule_pet_with_no_tasks PASSED    [ 76%]
+tests/test_pawpal.py::test_generate_schedule_exact_budget_fit PASSED     [ 80%]
+tests/test_pawpal.py::test_sort_by_time_priority_tiebreaker PASSED       [ 84%]
+tests/test_pawpal.py::test_detect_conflicts_exact_same_start_time PASSED [ 88%]
+tests/test_pawpal.py::test_filter_tasks_no_matches_returns_empty PASSED  [ 92%]
+tests/test_pawpal.py::test_explain_plan_empty_schedule_message PASSED    [ 96%]
+tests/test_pawpal.py::test_next_occurrence_preserves_all_attributes PASSED [100%]
 
-9 passed in 0.02s
+26 passed in 0.04s
 ```
+
+### Confidence level: ★★★★☆ (4/5)
+
+The core scheduling logic — sorting, filtering, budget enforcement, conflict detection, and recurring tasks — is thoroughly covered by tests across both happy paths and edge cases. The main gap is integration-level testing: the tests verify individual methods in isolation but don't test the full flow from UI input through session state to schedule output. A full end-to-end Streamlit test would push this to 5/5.
 
 ## 📐 Smarter Scheduling
 

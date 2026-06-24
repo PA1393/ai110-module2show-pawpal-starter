@@ -219,3 +219,89 @@ def test_conflict_warnings_returns_strings():
     assert len(warnings) == 1
     assert "CONFLICT" in warnings[0]
     assert "Vet" in warnings[0]
+
+
+# ── Edge cases ────────────────────────────────────────────────────────────────
+
+def test_generate_schedule_pet_with_no_tasks():
+    """A pet with zero tasks should produce an empty schedule, not an error."""
+    owner = Owner(name="Jordan", email="j@example.com", available_minutes_per_day=120)
+    pet = Pet(name="Mochi", species="dog", age=3)
+    scheduler = Scheduler(owner=owner, date="2026-06-23")
+    assert scheduler.generate_schedule(pet) == []
+
+
+def test_generate_schedule_exact_budget_fit():
+    """A task whose duration exactly equals the budget should be scheduled."""
+    owner = Owner(name="Jordan", email="j@example.com", available_minutes_per_day=30)
+    pet = Pet(name="Mochi", species="dog", age=3)
+    pet.add_task(Task("Walk", 30, "high", "walk", preferred_time="08:00"))
+    scheduler = Scheduler(owner=owner, date="2026-06-23")
+    schedule = scheduler.generate_schedule(pet)
+    assert len(schedule) == 1
+    assert schedule[0].task.title == "Walk"
+
+
+def test_sort_by_time_priority_tiebreaker():
+    """When preferred_time ties, high priority must come before low."""
+    owner = Owner(name="Jordan", email="j@example.com")
+    scheduler = Scheduler(owner=owner, date="2026-06-23")
+    tasks = [
+        Task("Low task",    10, "low",    "grooming",    preferred_time="08:00"),
+        Task("High task",   10, "high",   "walk",        preferred_time="08:00"),
+        Task("Medium task", 10, "medium", "enrichment",  preferred_time="08:00"),
+    ]
+    result = scheduler.sort_by_time(tasks)
+    assert result[0].priority == "high"
+    assert result[1].priority == "medium"
+    assert result[2].priority == "low"
+
+
+def test_detect_conflicts_exact_same_start_time():
+    """Two tasks with identical start times must be flagged as a conflict."""
+    owner = Owner(name="Jordan", email="j@example.com")
+    scheduler = Scheduler(owner=owner, date="2026-06-23")
+    task_a = Task("Walk",    30, "high", "walk")
+    task_b = Task("Feeding", 10, "high", "feeding")
+    schedule = [
+        ScheduledTask(task=task_a, start_time="08:00", end_time="08:30"),
+        ScheduledTask(task=task_b, start_time="08:00", end_time="08:10"),
+    ]
+    assert len(scheduler.detect_conflicts(schedule)) == 1
+
+
+def test_filter_tasks_no_matches_returns_empty():
+    """filter_tasks should return an empty list when no tasks match the criteria."""
+    owner = Owner(name="Jordan", email="j@example.com")
+    scheduler = Scheduler(owner=owner, date="2026-06-23")
+    pet = Pet(name="Mochi", species="dog", age=3)
+    pet.add_task(Task("Walk", 30, "high", "walk"))
+    assert scheduler.filter_tasks(pet, task_type="appointment") == []
+
+
+def test_explain_plan_empty_schedule_message():
+    """explain_plan on an empty list should return a 'no tasks' message, not crash."""
+    owner = Owner(name="Jordan", email="j@example.com")
+    scheduler = Scheduler(owner=owner, date="2026-06-23")
+    result = scheduler.explain_plan([])
+    assert "No tasks" in result
+
+
+def test_next_occurrence_preserves_all_attributes():
+    """The next-occurrence task must copy every attribute from the original."""
+    task = Task(
+        "Morning walk", 30, "high", "walk",
+        is_recurring=True, recurrence_interval="daily",
+        preferred_time="07:00", due_date="2026-06-23",
+    )
+    next_task = task.mark_complete()
+    assert next_task is not None
+    assert next_task.title == task.title
+    assert next_task.duration_minutes == task.duration_minutes
+    assert next_task.priority == task.priority
+    assert next_task.task_type == task.task_type
+    assert next_task.preferred_time == task.preferred_time
+    assert next_task.is_recurring == task.is_recurring
+    assert next_task.recurrence_interval == task.recurrence_interval
+    assert next_task.completed is False
+    assert next_task.due_date == "2026-06-24"
